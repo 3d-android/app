@@ -2,7 +2,8 @@
 <resources>
 
     <string name="app_name">3D</string>
-    <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
+    <string name="start">Start</string>
+    <string name="action_about">About</string>
 
 </resources>
