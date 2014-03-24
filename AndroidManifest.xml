@@ -22,9 +22,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name="SettingsActivity" >
-        </activity>
-        <activity android:name="AboutActivity" >
+        <activity
+            android:name="com.li_tianyang.android3d.AboutActivity"
+            android:label="@string/title_activity_about"
+            android:parentActivityName="com.li_tianyang.android3d.MainActivity" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="com.li_tianyang.android3d.MainActivity" />
         </activity>
     </application>
 

@@ -33,12 +33,9 @@ public class MainActivity extends ActionBarActivity {
 		return true;
 	}
 
-	public void openSettings() {
-		Intent intent = new Intent(this, SettingsActivity.class);
-	}
-
 	public void openAbout() {
 		Intent intent = new Intent(this, AboutActivity.class);
+		startActivity(intent);
 	}
 
 	@Override
@@ -48,9 +45,6 @@ public class MainActivity extends ActionBarActivity {
 		// as you specify a parent activity in AndroidManifest.xml.
 		int id = item.getItemId();
 		switch (id) {
-		case R.id.action_settings:
-			openSettings();
-			return true;
 		case R.id.action_about:
 			openAbout();
 			return true;
