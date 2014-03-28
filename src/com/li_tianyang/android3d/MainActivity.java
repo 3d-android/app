@@ -14,6 +14,9 @@ import android.view.MenuItem;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
+import android.view.ViewGroup.LayoutParams;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
@@ -48,19 +51,74 @@ public class MainActivity extends ActionBarActivity {
 		return c; // returns null if camera is unavailable
 	}
 
+	private void fitCameraView() {
+
+		Camera.Parameters parameters = mCamera.getParameters();
+
+		setContentView(R.layout.activity_main);
+		FrameLayout fL = (FrameLayout) findViewById(R.id.camera_preview);
+		int vH = fL.getWidth();
+		int vW = fL.getHeight();
+
+		int w = 0;
+		int h = 0;
+		List<Camera.Size> cSizes = parameters.getSupportedPreviewSizes();
+
+		float d = -1;
+		for (Camera.Size cS : cSizes) {
+			if (d < 0) {
+				h = cS.height;
+				w = cS.width;
+				d = Math.abs((float) h / (float) w - (float) vH / (float) vW);
+			} else {
+				float d1 = Math.abs((float) cS.height / (float) cS.width
+						- (float) vH / (float) vW);
+				if (d1 < d) {
+					h = cS.height;
+					w = cS.width;
+					d = d1;
+				}
+			}
+		}
+
+		parameters.setPreviewSize(w, h);
+
+		mCamera.setParameters(parameters);
+		mCamera.startPreview();
+
+		d = (float) h / (float) w;
+		if ((float) vH > (float) w * d) {
+			vH = (int) (d * (float) vW);
+		} else {
+			vW = (int) ((float) vH / d);
+		}
+
+		LayoutParams lP = mPreview.getLayoutParams();
+
+		// fL.setLayoutParams(lP);
+	}
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+
+		/*
+		 * this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+		 * WindowManager.LayoutParams.FLAG_FULLSCREEN);
+		 */
+
 		setContentView(R.layout.activity_main);
 
 		mCamera = getCameraInstance();
 		mPreview = new CameraPreview(this, mCamera);
 
-		FrameLayout rL = (FrameLayout) findViewById(R.id.camera_preview);
-		rL.addView(mPreview);
+		FrameLayout fL = (FrameLayout) findViewById(R.id.camera_preview);
+		fL.addView(mPreview);
 
 		TextView sB = (TextView) findViewById(R.id.start_button);
 		sB.bringToFront();
+
+		// fitCameraView();
 
 	}
 
@@ -112,54 +170,11 @@ public class MainActivity extends ActionBarActivity {
 			mHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 		}
 
-		private void fitCameraView() {
-
-			Camera.Parameters parameters = c.getParameters();
-
-			int vW = mPreview.getWidth();
-			int vH = mPreview.getHeight();
-
-			int w = 0;
-			int h = 0;
-			List<Camera.Size> cSizes = parameters.getSupportedPreviewSizes();
-
-			float d = -1;
-			for (Camera.Size cS : cSizes) {
-				if (d < 0) {
-					h = cS.height;
-					w = cS.width;
-					d = Math.abs((float) h / (float) w - (float) vH
-							/ (float) vW);
-				} else {
-					float d1 = Math.abs((float) cS.height / (float) cS.width
-							- (float) vH / (float) vW);
-					if (d1 < d) {
-						h = cS.height;
-						w = cS.width;
-						d = d1;
-					}
-				}
-			}
-
-			parameters.setPreviewSize(w, h);
-
-			c.setParameters(parameters);
-
-			setContentView(R.layout.activity_main);
-			FrameLayout rL = (FrameLayout) findViewById(R.id.camera_preview);
-			vH = rL.getHeight();
-			vW = rL.getWidth();
-
-			d = (float) h / (float) w;
-		}
-
 		public void surfaceCreated(SurfaceHolder holder) {
 			// The Surface has been created, now tell the camera where to draw
 			// the preview.
 			try {
 				c.setPreviewDisplay(holder);
-
-				fitCameraView();
 
 				c.startPreview();
 			} catch (IOException e) {
@@ -196,8 +211,6 @@ public class MainActivity extends ActionBarActivity {
 			// start preview with new settings
 			try {
 				c.setPreviewDisplay(mHolder);
-
-				fitCameraView();
 
 				c.startPreview();
 
