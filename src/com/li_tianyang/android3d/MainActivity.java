@@ -25,6 +25,7 @@ public class MainActivity extends ActionBarActivity {
 	private static final String TAG = "MainActivity";
 
 	private Camera mCamera;
+	private static int mCameraID;
 	private CameraPreview mPreview;
 
 	/** A safe way to get an instance of the Camera object. */
@@ -39,6 +40,7 @@ public class MainActivity extends ActionBarActivity {
 			if (cameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_BACK) {
 				try {
 					c = Camera.open(camIdx);
+					mCameraID = camIdx;
 				} catch (RuntimeException e) {
 					Log.d(TAG,
 							"Camera is not available (in use or does not exist)"
@@ -49,53 +51,6 @@ public class MainActivity extends ActionBarActivity {
 		c.setDisplayOrientation(90);
 
 		return c; // returns null if camera is unavailable
-	}
-
-	private void fitCameraView() {
-
-		Camera.Parameters parameters = mCamera.getParameters();
-
-		setContentView(R.layout.activity_main);
-		FrameLayout fL = (FrameLayout) findViewById(R.id.camera_preview);
-		int vH = fL.getWidth();
-		int vW = fL.getHeight();
-
-		int w = 0;
-		int h = 0;
-		List<Camera.Size> cSizes = parameters.getSupportedPreviewSizes();
-
-		float d = -1;
-		for (Camera.Size cS : cSizes) {
-			if (d < 0) {
-				h = cS.height;
-				w = cS.width;
-				d = Math.abs((float) h / (float) w - (float) vH / (float) vW);
-			} else {
-				float d1 = Math.abs((float) cS.height / (float) cS.width
-						- (float) vH / (float) vW);
-				if (d1 < d) {
-					h = cS.height;
-					w = cS.width;
-					d = d1;
-				}
-			}
-		}
-
-		parameters.setPreviewSize(w, h);
-
-		mCamera.setParameters(parameters);
-		mCamera.startPreview();
-
-		d = (float) h / (float) w;
-		if ((float) vH > (float) w * d) {
-			vH = (int) (d * (float) vW);
-		} else {
-			vW = (int) ((float) vH / d);
-		}
-
-		LayoutParams lP = mPreview.getLayoutParams();
-
-		// fL.setLayoutParams(lP);
 	}
 
 	@Override
@@ -176,6 +131,8 @@ public class MainActivity extends ActionBarActivity {
 			try {
 				c.setPreviewDisplay(holder);
 
+				requestLayout();
+
 				c.startPreview();
 			} catch (IOException e) {
 				Log.d(TAG, "Error setting camera preview: " + e.getMessage());
@@ -212,11 +169,42 @@ public class MainActivity extends ActionBarActivity {
 			try {
 				c.setPreviewDisplay(mHolder);
 
+				requestLayout();
+
 				c.startPreview();
 
 			} catch (Exception e) {
 				Log.d(TAG, "Error starting camera preview: " + e.getMessage());
 			}
+		}
+
+		public void setCamera(Camera c) {
+			mCamera = c;
+			if (mCamera != null) {
+
+			}
+		}
+
+	}
+
+	@Override
+	protected void onPause() {
+		super.onPause();
+		releaseCamera(); // release the camera immediately on pause event
+	}
+
+	private void releaseCamera() {
+		if (mCamera != null) {
+			mCamera.release(); // release the camera for other applications
+			mCamera = null;
+		}
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+		if (mCamera == null) {
+			mCamera = Camera.open(mCameraID);
 		}
 	}
 
