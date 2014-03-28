@@ -1,28 +1,67 @@
 package com.li_tianyang.android3d;
 
+import java.io.IOException;
+import java.util.List;
+
 import android.support.v7.app.ActionBarActivity;
-import android.support.v7.app.ActionBar;
-import android.support.v4.app.Fragment;
+import android.content.Context;
 import android.content.Intent;
+import android.hardware.Camera;
 import android.os.Bundle;
-import android.view.LayoutInflater;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.View;
-import android.view.ViewGroup;
-import android.os.Build;
+import android.widget.FrameLayout;
+import android.widget.TextView;
 
 public class MainActivity extends ActionBarActivity {
+
+	private static final String TAG = "MainActivity";
+
+	private Camera mCamera;
+	private CameraPreview mPreview;
+
+	/** A safe way to get an instance of the Camera object. */
+	public static Camera getCameraInstance() {
+		Camera c = null;
+
+		Camera.CameraInfo cameraInfo = new Camera.CameraInfo();
+		int cameraCount = 0;
+		cameraCount = Camera.getNumberOfCameras();
+		for (int camIdx = 0; camIdx < cameraCount; camIdx++) {
+			Camera.getCameraInfo(camIdx, cameraInfo);
+			if (cameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_BACK) {
+				try {
+					c = Camera.open(camIdx);
+				} catch (RuntimeException e) {
+					Log.d(TAG,
+							"Camera is not available (in use or does not exist)"
+									+ e.getMessage());
+				}
+			}
+		}
+		c.setDisplayOrientation(90);
+
+		return c; // returns null if camera is unavailable
+	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 
-		if (savedInstanceState == null) {
-			getSupportFragmentManager().beginTransaction()
-					.add(R.id.container, new PlaceholderFragment()).commit();
-		}
+		mCamera = getCameraInstance();
+		mPreview = new CameraPreview(this, mCamera);
+
+		FrameLayout rL = (FrameLayout) findViewById(R.id.camera_preview);
+		rL.addView(mPreview);
+
+		TextView sB = (TextView) findViewById(R.id.start_button);
+		sB.bringToFront();
+
 	}
 
 	@Override
@@ -52,25 +91,120 @@ public class MainActivity extends ActionBarActivity {
 		return super.onOptionsItemSelected(item);
 	}
 
-	/**
-	 * A placeholder fragment containing a simple view.
-	 */
-	public static class PlaceholderFragment extends Fragment {
-
-		public PlaceholderFragment() {
-		}
-
-		@Override
-		public View onCreateView(LayoutInflater inflater, ViewGroup container,
-				Bundle savedInstanceState) {
-			View rootView = inflater.inflate(R.layout.fragment_main, container,
-					false);
-			return rootView;
-		}
-	}
-
 	public void start(View view) {
 		// start capturing camera data
+	}
+
+	public class CameraPreview extends SurfaceView implements
+			SurfaceHolder.Callback {
+		private SurfaceHolder mHolder;
+		private Camera c;
+
+		public CameraPreview(Context context, Camera camera) {
+			super(context);
+			c = camera;
+
+			// Install a SurfaceHolder.Callback so we get notified when the
+			// underlying surface is created and destroyed.
+			mHolder = getHolder();
+			mHolder.addCallback(this);
+			// deprecated setting, but required on Android versions prior to 3.0
+			mHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+		}
+
+		private void fitCameraView() {
+
+			Camera.Parameters parameters = c.getParameters();
+
+			int vW = mPreview.getWidth();
+			int vH = mPreview.getHeight();
+
+			int w = 0;
+			int h = 0;
+			List<Camera.Size> cSizes = parameters.getSupportedPreviewSizes();
+
+			float d = -1;
+			for (Camera.Size cS : cSizes) {
+				if (d < 0) {
+					h = cS.height;
+					w = cS.width;
+					d = Math.abs((float) h / (float) w - (float) vH
+							/ (float) vW);
+				} else {
+					float d1 = Math.abs((float) cS.height / (float) cS.width
+							- (float) vH / (float) vW);
+					if (d1 < d) {
+						h = cS.height;
+						w = cS.width;
+						d = d1;
+					}
+				}
+			}
+
+			parameters.setPreviewSize(w, h);
+
+			c.setParameters(parameters);
+
+			setContentView(R.layout.activity_main);
+			FrameLayout rL = (FrameLayout) findViewById(R.id.camera_preview);
+			vH = rL.getHeight();
+			vW = rL.getWidth();
+
+			d = (float) h / (float) w;
+		}
+
+		public void surfaceCreated(SurfaceHolder holder) {
+			// The Surface has been created, now tell the camera where to draw
+			// the preview.
+			try {
+				c.setPreviewDisplay(holder);
+
+				fitCameraView();
+
+				c.startPreview();
+			} catch (IOException e) {
+				Log.d(TAG, "Error setting camera preview: " + e.getMessage());
+			}
+		}
+
+		public void surfaceDestroyed(SurfaceHolder holder) {
+			// empty. Take care of releasing the Camera preview in your
+			// activity.
+		}
+
+		public void surfaceChanged(SurfaceHolder holder, int format, int w,
+				int h) {
+			// If your preview can change or rotate, take care of those events
+			// here.
+			// Make sure to stop the preview before resizing or reformatting it.
+
+			if (mHolder.getSurface() == null) {
+				// preview surface does not exist
+				return;
+			}
+
+			// stop preview before making changes
+			try {
+				c.stopPreview();
+			} catch (Exception e) {
+				// ignore: tried to stop a non-existent preview
+			}
+
+			// set preview size and make any resize, rotate or
+			// reformatting changes here
+
+			// start preview with new settings
+			try {
+				c.setPreviewDisplay(mHolder);
+
+				fitCameraView();
+
+				c.startPreview();
+
+			} catch (Exception e) {
+				Log.d(TAG, "Error starting camera preview: " + e.getMessage());
+			}
+		}
 	}
 
 }

@@ -8,6 +8,9 @@
         android:minSdkVersion="9"
         android:targetSdkVersion="19" />
 
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
     <uses-feature
         android:name="android.hardware.camera"
         android:required="true" />
@@ -21,7 +24,8 @@
         android:theme="@style/AppTheme" >
         <activity
             android:name="com.li_tianyang.android3d.MainActivity"
-            android:label="" >
+            android:label=""
+            android:screenOrientation="portrait" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -31,7 +35,8 @@
         <activity
             android:name="com.li_tianyang.android3d.AboutActivity"
             android:label="@string/title_activity_about"
-            android:parentActivityName="com.li_tianyang.android3d.MainActivity" >
+            android:parentActivityName="com.li_tianyang.android3d.MainActivity"
+            android:screenOrientation="portrait" >
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.li_tianyang.android3d.MainActivity" />
