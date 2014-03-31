@@ -131,7 +131,7 @@ public class MainActivity extends ActionBarActivity {
 			try {
 				c.setPreviewDisplay(holder);
 
-				requestLayout();
+				// requestLayout();
 
 				c.startPreview();
 			} catch (IOException e) {
@@ -169,19 +169,12 @@ public class MainActivity extends ActionBarActivity {
 			try {
 				c.setPreviewDisplay(mHolder);
 
-				requestLayout();
+				// requestLayout();
 
 				c.startPreview();
 
 			} catch (Exception e) {
 				Log.d(TAG, "Error starting camera preview: " + e.getMessage());
-			}
-		}
-
-		public void setCamera(Camera c) {
-			mCamera = c;
-			if (mCamera != null) {
-
 			}
 		}
 
@@ -195,6 +188,7 @@ public class MainActivity extends ActionBarActivity {
 
 	private void releaseCamera() {
 		if (mCamera != null) {
+
 			mCamera.release(); // release the camera for other applications
 			mCamera = null;
 		}
@@ -205,6 +199,7 @@ public class MainActivity extends ActionBarActivity {
 		super.onResume();
 		if (mCamera == null) {
 			mCamera = Camera.open(mCameraID);
+
 		}
 	}
 
