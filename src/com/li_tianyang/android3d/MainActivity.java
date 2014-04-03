@@ -7,6 +7,7 @@ import android.support.v7.app.ActionBarActivity;
 import android.content.Context;
 import android.content.Intent;
 import android.hardware.Camera;
+import android.hardware.Camera.Size;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -72,9 +73,6 @@ public class MainActivity extends ActionBarActivity {
 
 		TextView sB = (TextView) findViewById(R.id.start_button);
 		sB.bringToFront();
-
-		// fitCameraView();
-
 	}
 
 	@Override
@@ -131,7 +129,7 @@ public class MainActivity extends ActionBarActivity {
 			try {
 				c.setPreviewDisplay(holder);
 
-				// requestLayout();
+				previewSize();
 
 				c.startPreview();
 			} catch (IOException e) {
@@ -169,13 +167,25 @@ public class MainActivity extends ActionBarActivity {
 			try {
 				c.setPreviewDisplay(mHolder);
 
-				// requestLayout();
+				previewSize();
 
 				c.startPreview();
 
 			} catch (Exception e) {
 				Log.d(TAG, "Error starting camera preview: " + e.getMessage());
 			}
+		}
+
+		public void setCamera(Camera cam) {
+			c = cam;
+		}
+
+		private void previewSize() {
+			Camera.Parameters p = mCamera.getParameters();
+			List<Size> sizes = p.getSupportedPreviewSizes();
+			// TODO
+			p.setPreviewSize(480, 480);
+			c.setParameters(p);
 		}
 
 	}
@@ -199,7 +209,9 @@ public class MainActivity extends ActionBarActivity {
 		super.onResume();
 		if (mCamera == null) {
 			mCamera = Camera.open(mCameraID);
+			mCamera.setDisplayOrientation(90);
 
+			mPreview.setCamera(mCamera);
 		}
 	}
 
