@@ -15,9 +15,6 @@ import android.view.MenuItem;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
-import android.view.ViewGroup.LayoutParams;
-import android.view.Window;
-import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
@@ -73,6 +70,8 @@ public class MainActivity extends ActionBarActivity {
 
 		TextView sB = (TextView) findViewById(R.id.start_button);
 		sB.bringToFront();
+
+		// mPreview.setLayoutParams(new ViewGroup.LayoutParams(480, 480));
 	}
 
 	@Override
@@ -123,13 +122,37 @@ public class MainActivity extends ActionBarActivity {
 			mHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 		}
 
+		@Override
+		public void onLayout(boolean changed, int left, int top, int right,
+				int bottom) {
+			if (changed) {
+				Size s = goodPreviewSize();
+
+				View par = (View) getParent();
+				final int w = par.getWidth();
+				final int h = par.getHeight();
+
+				int l = (w - s.height) / 2;
+				int t = (h - s.width) / 2;
+
+				(this).layout(l, t, l + s.height, t + s.width);
+			}
+		}
+
+		private void fitPreview() {
+			Size s = goodPreviewSize();
+			Camera.Parameters p = c.getParameters();
+			p.setPreviewSize(s.width, s.height);
+			c.setParameters(p);
+		}
+
 		public void surfaceCreated(SurfaceHolder holder) {
 			// The Surface has been created, now tell the camera where to draw
 			// the preview.
 			try {
 				c.setPreviewDisplay(holder);
 
-				previewSize();
+				fitPreview();
 
 				c.startPreview();
 			} catch (IOException e) {
@@ -167,7 +190,7 @@ public class MainActivity extends ActionBarActivity {
 			try {
 				c.setPreviewDisplay(mHolder);
 
-				previewSize();
+				fitPreview();
 
 				c.startPreview();
 
@@ -180,14 +203,35 @@ public class MainActivity extends ActionBarActivity {
 			c = cam;
 		}
 
-		private void previewSize() {
+		private Size goodPreviewSize() {
 			Camera.Parameters p = mCamera.getParameters();
 			List<Size> sizes = p.getSupportedPreviewSizes();
-			// TODO
-			p.setPreviewSize(480, 480);
-			c.setParameters(p);
-		}
 
+			Size goodSize = null;
+
+			View par = (View) getParent();
+			final int w = par.getWidth();
+			final int h = par.getHeight();
+			float area = (float) (w * h);
+			float partial = 0;
+
+			for (Size s : sizes) {
+				if (s.width <= h && s.height <= w) {
+					if (goodSize == null) {
+						goodSize = s;
+						partial = (float) (s.width * s.height) / area;
+					} else {
+						float tmpPartial = (float) (s.width * s.height) / area;
+						if (tmpPartial > partial) {
+							partial = tmpPartial;
+							goodSize = s;
+						}
+					}
+				}
+			}
+
+			return goodSize;
+		}
 	}
 
 	@Override
