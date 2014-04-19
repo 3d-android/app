@@ -25,6 +25,7 @@ public class MainActivity extends ActionBarActivity {
 	private Camera mCamera;
 	private static int mCameraID;
 	private CameraPreview mPreview;
+	private boolean recording;
 
 	/** A safe way to get an instance of the Camera object. */
 	public static Camera getCameraInstance() {
@@ -55,11 +56,6 @@ public class MainActivity extends ActionBarActivity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
-		/*
-		 * this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
-		 * WindowManager.LayoutParams.FLAG_FULLSCREEN);
-		 */
-
 		setContentView(R.layout.activity_main);
 
 		mCamera = getCameraInstance();
@@ -68,10 +64,11 @@ public class MainActivity extends ActionBarActivity {
 		FrameLayout fL = (FrameLayout) findViewById(R.id.camera_preview);
 		fL.addView(mPreview);
 
-		TextView sB = (TextView) findViewById(R.id.start_button);
-		sB.bringToFront();
+		TextView cB = (TextView) findViewById(R.id.control_button);
+		cB.setText("Start");
+		cB.bringToFront();
+		recording = false;
 
-		// mPreview.setLayoutParams(new ViewGroup.LayoutParams(480, 480));
 	}
 
 	@Override
@@ -101,8 +98,17 @@ public class MainActivity extends ActionBarActivity {
 		return super.onOptionsItemSelected(item);
 	}
 
-	public void start(View view) {
-		// start capturing camera data
+	public void control(View view) {
+
+		TextView cB = (TextView) findViewById(R.id.control_button);
+		if (!recording) {
+			cB.setText("Stop");
+			recording = true;
+		} else {
+			cB.setText("Start");
+			recording = false;
+		}
+
 	}
 
 	public class CameraPreview extends SurfaceView implements
@@ -257,6 +263,10 @@ public class MainActivity extends ActionBarActivity {
 
 			mPreview.setCamera(mCamera);
 		}
+
+		TextView cB = (TextView) findViewById(R.id.control_button);
+		cB.setText("Start");
+		recording = false;
 	}
 
 }
