@@ -8,6 +8,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.hardware.Camera;
 import android.hardware.Camera.Size;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -26,6 +30,31 @@ public class MainActivity extends ActionBarActivity {
 	private static int mCameraID;
 	private CameraPreview mPreview;
 	private boolean recording;
+
+	private SensorManager mSensorManager;
+	private Sensor accel;
+	private Sensor gyro;
+
+	private SensorEventListener mSensorEventListener = new SensorEventListener() {
+
+		@Override
+		public void onAccuracyChanged(Sensor sensor, int accuracy) {
+		}
+
+		@Override
+		public void onSensorChanged(SensorEvent event) {
+			if (recording) {
+				switch (event.sensor.getType()) {
+				case Sensor.TYPE_ACCELEROMETER:
+
+					break;
+				case Sensor.TYPE_GYROSCOPE:
+
+					break;
+				}
+			}
+		}
+	};
 
 	/** A safe way to get an instance of the Camera object. */
 	public static Camera getCameraInstance() {
@@ -68,6 +97,10 @@ public class MainActivity extends ActionBarActivity {
 		cB.setText("Start");
 		cB.bringToFront();
 		recording = false;
+
+		mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+		accel = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+		gyro = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
 
 	}
 
@@ -112,7 +145,7 @@ public class MainActivity extends ActionBarActivity {
 	}
 
 	public class CameraPreview extends SurfaceView implements
-			SurfaceHolder.Callback {
+			SurfaceHolder.Callback, Camera.PreviewCallback {
 		private SurfaceHolder mHolder;
 		private Camera c;
 
@@ -161,6 +194,7 @@ public class MainActivity extends ActionBarActivity {
 				fitPreview();
 
 				c.startPreview();
+
 			} catch (IOException e) {
 				Log.d(TAG, "Error setting camera preview: " + e.getMessage());
 			}
@@ -198,6 +232,7 @@ public class MainActivity extends ActionBarActivity {
 
 				fitPreview();
 
+				c.setPreviewCallback(this);
 				c.startPreview();
 
 			} catch (Exception e) {
@@ -218,16 +253,17 @@ public class MainActivity extends ActionBarActivity {
 			View par = (View) getParent();
 			final int w = par.getWidth();
 			final int h = par.getHeight();
-			float area = (float) (w * h);
-			float partial = 0;
+			double area = (double) (w * h);
+			double partial = 0;
 
 			for (Size s : sizes) {
 				if (s.width <= h && s.height <= w) {
 					if (goodSize == null) {
 						goodSize = s;
-						partial = (float) (s.width * s.height) / area;
+						partial = (double) (s.width * s.height) / area;
 					} else {
-						float tmpPartial = (float) (s.width * s.height) / area;
+						double tmpPartial = (double) (s.width * s.height)
+								/ area;
 						if (tmpPartial > partial) {
 							partial = tmpPartial;
 							goodSize = s;
@@ -238,12 +274,22 @@ public class MainActivity extends ActionBarActivity {
 
 			return goodSize;
 		}
+
+		@Override
+		public void onPreviewFrame(byte[] data, Camera camera) {
+			if (recording && data != null) {
+				Log.d(TAG, "preview frame");
+			}
+		}
 	}
 
 	@Override
 	protected void onPause() {
 		super.onPause();
 		releaseCamera(); // release the camera immediately on pause event
+
+		mSensorManager.unregisterListener(mSensorEventListener);
+
 	}
 
 	private void releaseCamera() {
@@ -262,6 +308,26 @@ public class MainActivity extends ActionBarActivity {
 			mCamera.setDisplayOrientation(90);
 
 			mPreview.setCamera(mCamera);
+		}
+
+		if (accel != null) {
+			mSensorManager.registerListener(mSensorEventListener, accel,
+					SensorManager.SENSOR_DELAY_NORMAL);
+			Log.d(TAG, "Good: ACCELEROMETER Sensor");
+
+		} else {
+			Log.d(TAG, "Bad: ACCELEROMETER Sensor");
+
+		}
+
+		if (gyro != null) {
+			mSensorManager.registerListener(mSensorEventListener, gyro,
+					SensorManager.SENSOR_DELAY_NORMAL);
+			Log.d(TAG, "Good: GYROSCOPE Sensor");
+
+		} else {
+			Log.d(TAG, "Bad: GYROSCOPE Sensor");
+
 		}
 
 		TextView cB = (TextView) findViewById(R.id.control_button);
