@@ -12,13 +12,15 @@
         android:layout_height="match_parent"
         android:layout_centerInParent="true" >
 
-        <Button
+        <ToggleButton
             android:id="@+id/control_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:onClick="control"
-            android:text="" />
+            android:text=""
+            android:textOff="@string/control_button_off"
+            android:textOn="@string/control_button_on" />
     </FrameLayout>
 
 </RelativeLayout>

@@ -5,5 +5,7 @@
     <string name="action_about">About</string>
     <string name="title_activity_about">About</string>
     <string name="text_about">&lt;a href=\"https://github.com/3d-android\">https://github.com/3d-android&lt;/a></string>
+    <string name="control_button_on">Stop</string>
+    <string name="control_button_off">Start</string>
 
 </resources>

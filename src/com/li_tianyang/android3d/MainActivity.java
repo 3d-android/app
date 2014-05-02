@@ -20,7 +20,7 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.FrameLayout;
-import android.widget.TextView;
+import android.widget.ToggleButton;
 
 public class MainActivity extends ActionBarActivity {
 
@@ -46,10 +46,10 @@ public class MainActivity extends ActionBarActivity {
 			if (recording) {
 				switch (event.sensor.getType()) {
 				case Sensor.TYPE_ACCELEROMETER:
-
+					Log.d(TAG, Float.toString(event.values[0]));
 					break;
 				case Sensor.TYPE_GYROSCOPE:
-
+					Log.d(TAG, Float.toString(event.values[0]));
 					break;
 				}
 			}
@@ -93,10 +93,8 @@ public class MainActivity extends ActionBarActivity {
 		FrameLayout fL = (FrameLayout) findViewById(R.id.camera_preview);
 		fL.addView(mPreview);
 
-		TextView cB = (TextView) findViewById(R.id.control_button);
-		cB.setText("Start");
+		ToggleButton cB = (ToggleButton) findViewById(R.id.control_button);
 		cB.bringToFront();
-		recording = false;
 
 		mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 		accel = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
@@ -132,16 +130,8 @@ public class MainActivity extends ActionBarActivity {
 	}
 
 	public void control(View view) {
-
-		TextView cB = (TextView) findViewById(R.id.control_button);
-		if (!recording) {
-			cB.setText("Stop");
-			recording = true;
-		} else {
-			cB.setText("Start");
-			recording = false;
-		}
-
+		recording = ((ToggleButton) findViewById(R.id.control_button))
+				.isChecked();
 	}
 
 	public class CameraPreview extends SurfaceView implements
@@ -330,8 +320,8 @@ public class MainActivity extends ActionBarActivity {
 
 		}
 
-		TextView cB = (TextView) findViewById(R.id.control_button);
-		cB.setText("Start");
+		ToggleButton cB = (ToggleButton) findViewById(R.id.control_button);
+		cB.setChecked(false);
 		recording = false;
 	}
 
