@@ -1,7 +1,9 @@
 package com.li_tianyang.android3d;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import android.support.v7.app.ActionBarActivity;
 import android.content.Context;
@@ -35,6 +37,28 @@ public class MainActivity extends ActionBarActivity {
 	private Sensor accel;
 	private Sensor gyro;
 
+	public static enum RawDatumType {
+		GYRO, /* gyroscope */
+		ACCEL, /* accelerator */
+		CAM, /* camera */
+		FIN, /* data collection finished, continue processing */
+		STOP, /* data collection stopped, forget about processing */
+	}
+
+	public class RawDatum {
+		RawDatumType mType;
+
+		byte[] mCam;
+		float[] mSensorVal;
+
+		public RawDatum() {
+			mCam = new byte[1];
+			mSensorVal = new float[1];
+		}
+	};
+
+	LinkedBlockingQueue<RawDatum> mRawData;
+
 	private SensorEventListener mSensorEventListener = new SensorEventListener() {
 
 		@Override
@@ -44,12 +68,15 @@ public class MainActivity extends ActionBarActivity {
 		@Override
 		public void onSensorChanged(SensorEvent event) {
 			if (recording) {
+				RawDatum rawData = new RawDatum();
+				rawData.mSensorVal = Arrays.copyOf(event.values,
+						event.values.length);
 				switch (event.sensor.getType()) {
 				case Sensor.TYPE_ACCELEROMETER:
-					Log.d(TAG, Float.toString(event.values[0]));
+					rawData.mType = RawDatumType.ACCEL;
 					break;
 				case Sensor.TYPE_GYROSCOPE:
-					Log.d(TAG, Float.toString(event.values[0]));
+					rawData.mType = RawDatumType.GYRO;
 					break;
 				}
 			}
@@ -100,6 +127,8 @@ public class MainActivity extends ActionBarActivity {
 		accel = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 		gyro = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
 
+		mRawData = new LinkedBlockingQueue<RawDatum>();
+
 	}
 
 	@Override
@@ -132,6 +161,75 @@ public class MainActivity extends ActionBarActivity {
 	public void control(View view) {
 		recording = ((ToggleButton) findViewById(R.id.control_button))
 				.isChecked();
+
+		if (recording) {
+
+			new Thread(new Runnable() {
+
+				@Override
+				public void run() {
+
+					Log.d(TAG, "processing thread started");
+
+					boolean loop = true;
+					RawDatum rawDatum = null;
+
+					try {
+						while (loop) {
+							rawDatum = mRawData.take();
+							switch (rawDatum.mType) {
+
+							case GYRO:
+								break;
+
+							case ACCEL:
+								break;
+
+							case CAM:
+								break;
+
+							case FIN:
+								loop = false;
+								break;
+
+							case STOP:
+								loop = false;
+								break;
+							}
+
+						}
+
+						switch (rawDatum.mType) {
+
+						case FIN:
+							break;
+
+						case STOP:
+							break;
+
+						default:
+							break;
+						}
+
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+
+					Log.d(TAG, "processing thread ended");
+
+				}
+			}).start();
+
+		} else {
+			RawDatum rawDatum = new RawDatum();
+			rawDatum.mType = RawDatumType.FIN;
+			try {
+				mRawData.put(rawDatum);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+
 	}
 
 	public class CameraPreview extends SurfaceView implements
@@ -268,7 +366,14 @@ public class MainActivity extends ActionBarActivity {
 		@Override
 		public void onPreviewFrame(byte[] data, Camera camera) {
 			if (recording && data != null) {
-				Log.d(TAG, "preview frame");
+				RawDatum rawDatum = new RawDatum();
+				rawDatum.mType = RawDatumType.CAM;
+				rawDatum.mCam = Arrays.copyOf(data, data.length);
+				try {
+					mRawData.put(rawDatum);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
 			}
 		}
 	}
@@ -279,6 +384,14 @@ public class MainActivity extends ActionBarActivity {
 		releaseCamera(); // release the camera immediately on pause event
 
 		mSensorManager.unregisterListener(mSensorEventListener);
+
+		RawDatum rawDatum = new RawDatum();
+		rawDatum.mType = RawDatumType.STOP;
+		try {
+			mRawData.put(rawDatum);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 
 	}
 
