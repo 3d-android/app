@@ -52,8 +52,8 @@ public class MainActivity extends ActionBarActivity {
 		float[] mSensorVal;
 
 		public RawDatum() {
-			mCam = new byte[1];
-			mSensorVal = new float[1];
+			mCam = null;
+			mSensorVal = null;
 		}
 	};
 
