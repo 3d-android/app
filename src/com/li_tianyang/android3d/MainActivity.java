@@ -116,11 +116,7 @@ public class MainActivity extends ActionBarActivity {
 		private WeakReference<MainActivity> mMain;
 
 		public UIHandler(MainActivity mainActivity) {
-			mMain = new WeakReference<MainActivity>(mainActivity);
-		}
-
-		public void setMainRef(MainActivity mainActivity) {
-			mMain.clear();
+			super(Looper.getMainLooper());
 			mMain = new WeakReference<MainActivity>(mainActivity);
 		}
 
@@ -236,11 +232,7 @@ public class MainActivity extends ActionBarActivity {
 
 		setContentView(R.layout.activity_main);
 
-		if (mUIHandler == null) {
-			mUIHandler = new UIHandler(this);
-		} else {
-			mUIHandler.setMainRef(this);
-		}
+		mUIHandler = new UIHandler(this);
 
 		mCamera = getCameraInstance();
 		mPreview = new CameraPreview(this, mCamera);
