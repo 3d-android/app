@@ -42,6 +42,7 @@ public class MainActivity extends ActionBarActivity {
 	private static int mCameraID;
 	private CameraPreview mPreview;
 	private boolean recording;
+	private Thread mProcThread;
 
 	ToggleButton mControlButton;
 
@@ -115,7 +116,11 @@ public class MainActivity extends ActionBarActivity {
 		private WeakReference<MainActivity> mMain;
 
 		public UIHandler(MainActivity mainActivity) {
-			super(Looper.getMainLooper());
+			mMain = new WeakReference<MainActivity>(mainActivity);
+		}
+
+		public void setMainRef(MainActivity mainActivity) {
+			mMain.clear();
 			mMain = new WeakReference<MainActivity>(mainActivity);
 		}
 
@@ -123,13 +128,13 @@ public class MainActivity extends ActionBarActivity {
 		public void handleMessage(Message msg) {
 			MainActivity main = mMain.get();
 			if (main == null) {
-				Log.d(TAG, "MainActivity null in handler");
+				Log.d(TAG + ":UIHandler", "MainActivity null in handler");
 				return;
 			}
 
 			switch (msg.what) {
 			case UIHandlerType.CLEAR_VIEW:
-
+				Log.d(TAG + ":UIHandler", "need to clear drawing in capture");
 				break;
 
 			case UIHandlerType.UPDATE_VIEW:
@@ -138,26 +143,28 @@ public class MainActivity extends ActionBarActivity {
 
 			case UIHandlerType.FIN_REC:
 				main.mControlButton.setEnabled(false);
+				Log.d(TAG + ":UIHandler",
+						"all data received, processing starts");
 				break;
 
 			case UIHandlerType.FIN_PROC:
 				main.mControlButton.setEnabled(true);
+				Log.d(TAG + ":UIHandler", "processing finished");
 				break;
 
 			default:
-				Log.d(TAG, "mUIHandler got weird message");
+				Log.d(TAG + ":UIHandler", "got weird message");
 			}
 		}
 	}
 
-	private final Handler mUIHandler = new UIHandler(this);
+	private UIHandler mUIHandler = null;
 
 	public static enum RawDatumType {
 		GYRO, /* gyroscope */
 		ACCEL, /* accelerator */
 		CAM, /* camera */
 		FIN, /* data collection finished, continue processing */
-		STOP, /* data collection stopped, forget about processing */
 	}
 
 	public class RawDatum {
@@ -229,15 +236,22 @@ public class MainActivity extends ActionBarActivity {
 
 		setContentView(R.layout.activity_main);
 
+		if (mUIHandler == null) {
+			mUIHandler = new UIHandler(this);
+		} else {
+			mUIHandler.setMainRef(this);
+		}
+
 		mCamera = getCameraInstance();
 		mPreview = new CameraPreview(this, mCamera);
 
 		FrameLayout fL = (FrameLayout) findViewById(R.id.camera_preview);
 		fL.addView(mPreview);
 
-		mGLView = new GLView(this);
-		fL.addView(mGLView);
-		mGLView.bringToFront();
+		/*
+		 * mGLView = new GLView(this); fL.addView(mGLView);
+		 * mGLView.bringToFront();
+		 */
 
 		mControlButton = (ToggleButton) findViewById(R.id.control_button);
 		mControlButton.bringToFront();
@@ -283,12 +297,12 @@ public class MainActivity extends ActionBarActivity {
 
 		if (recording) {
 
-			new Thread(new Runnable() {
+			mProcThread = new Thread(new Runnable() {
 
 				@Override
 				public void run() {
 
-					Log.d(TAG, "processing thread started");
+					Log.d(TAG + "-procThread", "processing thread started");
 
 					Message startMsg = mUIHandler
 							.obtainMessage(UIHandlerType.CLEAR_VIEW);
@@ -298,7 +312,7 @@ public class MainActivity extends ActionBarActivity {
 					RawDatum rawDatum = null;
 
 					try {
-						while (loop) {
+						while (!Thread.currentThread().isInterrupted() && loop) {
 							rawDatum = mRawData.take();
 							switch (rawDatum.mType) {
 
@@ -315,43 +329,33 @@ public class MainActivity extends ActionBarActivity {
 								loop = false;
 								break;
 
-							case STOP:
-								loop = false;
-								break;
 							}
-
-						}
-
-						switch (rawDatum.mType) {
-
-						case FIN:
-							Message finRecMsg = mUIHandler
-									.obtainMessage(UIHandlerType.FIN_REC);
-							finRecMsg.sendToTarget();
-
-							Message finProcMsg = mUIHandler
-									.obtainMessage(UIHandlerType.FIN_PROC);
-							finProcMsg.sendToTarget();
-							break;
-
-						case STOP:
-							Message stopMsg = mUIHandler
-									.obtainMessage(UIHandlerType.CLEAR_VIEW);
-							stopMsg.sendToTarget();
-							break;
-
-						default:
-							break;
 						}
 
 					} catch (InterruptedException e) {
-						e.printStackTrace();
+						Log.d(TAG + "-procThread",
+								"processing thread may have been interuptted while waiting for data");
 					}
 
-					Log.d(TAG, "processing thread ended");
+					if (loop) {
+						Message stopMsg = mUIHandler
+								.obtainMessage(UIHandlerType.CLEAR_VIEW);
+						stopMsg.sendToTarget();
+					} else {
+						Message finRecMsg = mUIHandler
+								.obtainMessage(UIHandlerType.FIN_REC);
+						finRecMsg.sendToTarget();
+
+						Message finProcMsg = mUIHandler
+								.obtainMessage(UIHandlerType.FIN_PROC);
+						finProcMsg.sendToTarget();
+					}
+
+					Log.d(TAG + "-procThread", "processing thread ended");
 
 				}
-			}).start();
+			});
+			mProcThread.start();
 
 		} else {
 			RawDatum rawDatum = new RawDatum();
@@ -417,7 +421,8 @@ public class MainActivity extends ActionBarActivity {
 				c.startPreview();
 
 			} catch (IOException e) {
-				Log.d(TAG, "Error setting camera preview: " + e.getMessage());
+				Log.d(TAG + ":CameraPreview", "Error setting camera preview: "
+						+ e.getMessage());
 			}
 		}
 
@@ -457,7 +462,8 @@ public class MainActivity extends ActionBarActivity {
 				c.startPreview();
 
 			} catch (Exception e) {
-				Log.d(TAG, "Error starting camera preview: " + e.getMessage());
+				Log.d(TAG + ":CameraPreview", "Error starting camera preview: "
+						+ e.getMessage());
 			}
 		}
 
@@ -522,14 +528,8 @@ public class MainActivity extends ActionBarActivity {
 		mSensorManager.unregisterListener(mSensorEventListener);
 
 		if (recording) {
-			RawDatum rawDatum = new RawDatum();
-			rawDatum.mType = RawDatumType.STOP;
-			try {
-				mRawData.put(rawDatum);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
 			recording = false;
+			mProcThread.interrupt();
 		}
 
 	}
@@ -572,8 +572,8 @@ public class MainActivity extends ActionBarActivity {
 
 		}
 
-		mControlButton.setChecked(false);
 		mControlButton.setEnabled(true);
+		mControlButton.setChecked(false);
 		recording = false;
 	}
 
