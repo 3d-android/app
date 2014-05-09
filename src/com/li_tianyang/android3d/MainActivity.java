@@ -54,6 +54,7 @@ public class MainActivity extends ActionBarActivity {
 		public GLView(Context context) {
 			super(context);
 			setEGLContextClientVersion(2);
+			setEGLConfigChooser(8, 8, 8, 8, 16, 0);
 			setRenderer(new GLRenderer());
 			getHolder().setFormat(PixelFormat.TRANSLUCENT);
 			setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
@@ -530,6 +531,7 @@ public class MainActivity extends ActionBarActivity {
 			mProcThread.interrupt();
 		}
 
+		mGLView.onPause();
 	}
 
 	private void releaseCamera() {
@@ -573,11 +575,6 @@ public class MainActivity extends ActionBarActivity {
 		mControlButton.setEnabled(true);
 		mControlButton.setChecked(false);
 		recording = false;
-
-		clearGLView();
+		mGLView.onResume();
 	}
-
-	public void clearGLView() {
-	}
-
 }

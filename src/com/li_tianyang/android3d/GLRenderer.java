@@ -14,6 +14,8 @@ public class GLRenderer implements GLSurfaceView.Renderer {
 	public void onSurfaceCreated(GL10 unused, EGLConfig config) {
 		// Set the background frame color
 		GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+		unused.glClearColor(0, 0, 0, 0);
 	}
 
 	public void onDrawFrame(GL10 unused) {
