@@ -21,6 +21,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -88,9 +89,6 @@ public class MainActivity extends ActionBarActivity {
 		public static final int FIN_PROC = 2;
 	}
 
-	public class UIUpdateData {
-	}
-
 	public static class UIHandler extends Handler {
 
 		private WeakReference<MainActivity> mMain;
@@ -143,10 +141,15 @@ public class MainActivity extends ActionBarActivity {
 	}
 
 	public class RawDatum {
-		RawDatumType mType;
+		public RawDatumType mType;
 
-		byte[] mCam;
-		float[] mSensorVal;
+		public byte[] mCam;
+
+		public float[] mSensorVal;
+		public long mEventTimestamp;
+		public int mAccuracy;
+
+		public long mSysTimestamp;
 
 		public RawDatum() {
 			mCam = null;
@@ -168,6 +171,10 @@ public class MainActivity extends ActionBarActivity {
 				RawDatum rawData = new RawDatum();
 				rawData.mSensorVal = Arrays.copyOf(event.values,
 						event.values.length);
+				rawData.mEventTimestamp = event.timestamp;
+				rawData.mAccuracy = event.accuracy;
+				rawData.mSysTimestamp = SystemClock.elapsedRealtimeNanos();
+
 				switch (event.sensor.getType()) {
 				case Sensor.TYPE_ACCELEROMETER:
 					rawData.mType = RawDatumType.ACCEL;
@@ -282,6 +289,8 @@ public class MainActivity extends ActionBarActivity {
 					// after 50 camera frames update UI
 					final int UPDATE_FREQ = 50;
 
+					Proc3D proc = new Proc3D();
+
 					try {
 						while (!Thread.currentThread().isInterrupted() && loop) {
 							rawDatum = mRawData.take();
@@ -289,18 +298,25 @@ public class MainActivity extends ActionBarActivity {
 							switch (rawDatum.mType) {
 
 							case GYRO:
+								proc.updateGyroData(rawDatum.mSensorVal,
+										rawDatum.mAccuracy,
+										rawDatum.mEventTimestamp,
+										rawDatum.mSysTimestamp);
 								break;
 
 							case ACCEL:
+								proc.updateAccelData(rawDatum.mSensorVal,
+										rawDatum.mAccuracy,
+										rawDatum.mEventTimestamp,
+										rawDatum.mSysTimestamp);
 								break;
 
 							case CAM:
+								proc.updateCamData(rawDatum.mCam,
+										rawDatum.mSysTimestamp);
 								camCount += 1;
 								if (camCount == UPDATE_FREQ) {
-									UIUpdateData updateData = new UIUpdateData();
-
-									// TODO
-
+									UIUpdateData updateData = proc.getUIData();
 									Message camMsg = mUIHandler.obtainMessage(
 											UIHandlerType.UPDATE_VIEW,
 											updateData);
@@ -492,6 +508,7 @@ public class MainActivity extends ActionBarActivity {
 				RawDatum rawDatum = new RawDatum();
 				rawDatum.mType = RawDatumType.CAM;
 				rawDatum.mCam = Arrays.copyOf(data, data.length);
+				rawDatum.mSysTimestamp = SystemClock.elapsedRealtimeNanos();
 				try {
 					mRawData.put(rawDatum);
 				} catch (InterruptedException e) {
