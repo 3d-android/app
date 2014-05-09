@@ -6,9 +6,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import javax.microedition.khronos.egl.EGLConfig;
-import javax.microedition.khronos.opengles.GL10;
-
 import android.support.v7.app.ActionBarActivity;
 import android.content.Context;
 import android.content.Intent;
@@ -19,7 +16,6 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.os.Handler;
@@ -53,29 +49,13 @@ public class MainActivity extends ActionBarActivity {
 	private int mPreviewW;
 	private int mPreviewH;
 
-	public class GLRenderer implements GLSurfaceView.Renderer {
-
-		public void onSurfaceCreated(GL10 unused, EGLConfig config) {
-			// Set the background frame color
-			GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		}
-
-		public void onDrawFrame(GL10 unused) {
-			// Redraw background color
-			GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
-		}
-
-		public void onSurfaceChanged(GL10 unused, int width, int height) {
-			GLES20.glViewport(0, 0, width, height);
-		}
-	}
-
 	public class GLView extends GLSurfaceView {
 		public GLView(Context context) {
 			super(context);
+			setEGLContextClientVersion(2);
 			setRenderer(new GLRenderer());
 			getHolder().setFormat(PixelFormat.TRANSLUCENT);
-			setEGLContextClientVersion(2);
+			setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
 		}
 
 		@Override
@@ -98,17 +78,17 @@ public class MainActivity extends ActionBarActivity {
 	private GLView mGLView;
 
 	public class UIHandlerType {
-		// clear what has been drawn
-		public static final int CLEAR_VIEW = 0;
-
 		// update view with new drawing
-		public static final int UPDATE_VIEW = 1;
+		public static final int UPDATE_VIEW = 0;
 
 		// finished receiving sensor data
-		public static final int FIN_REC = 2;
+		public static final int FIN_REC = 1;
 
 		// finished processing sensor data
-		public static final int FIN_PROC = 3;
+		public static final int FIN_PROC = 2;
+	}
+
+	public class UIUpdateData {
 	}
 
 	public static class UIHandler extends Handler {
@@ -129,11 +109,10 @@ public class MainActivity extends ActionBarActivity {
 			}
 
 			switch (msg.what) {
-			case UIHandlerType.CLEAR_VIEW:
-				Log.d(TAG + ":UIHandler", "need to clear drawing in capture");
-				break;
-
 			case UIHandlerType.UPDATE_VIEW:
+				UIUpdateData updateData = (UIUpdateData) msg.obj;
+
+				// TODO
 
 				break;
 
@@ -240,10 +219,9 @@ public class MainActivity extends ActionBarActivity {
 		FrameLayout fL = (FrameLayout) findViewById(R.id.camera_preview);
 		fL.addView(mPreview);
 
-		/*
-		 * mGLView = new GLView(this); fL.addView(mGLView);
-		 * mGLView.bringToFront();
-		 */
+		mGLView = new GLView(this);
+		fL.addView(mGLView);
+		mGLView.bringToFront();
 
 		mControlButton = (ToggleButton) findViewById(R.id.control_button);
 		mControlButton.bringToFront();
@@ -296,16 +274,18 @@ public class MainActivity extends ActionBarActivity {
 
 					Log.d(TAG + "-procThread", "processing thread started");
 
-					Message startMsg = mUIHandler
-							.obtainMessage(UIHandlerType.CLEAR_VIEW);
-					startMsg.sendToTarget();
-
 					boolean loop = true;
 					RawDatum rawDatum = null;
+
+					int camCount = 0;
+
+					// after 50 camera frames update UI
+					final int UPDATE_FREQ = 50;
 
 					try {
 						while (!Thread.currentThread().isInterrupted() && loop) {
 							rawDatum = mRawData.take();
+
 							switch (rawDatum.mType) {
 
 							case GYRO:
@@ -315,6 +295,19 @@ public class MainActivity extends ActionBarActivity {
 								break;
 
 							case CAM:
+								camCount += 1;
+								if (camCount == UPDATE_FREQ) {
+									UIUpdateData updateData = new UIUpdateData();
+
+									// TODO
+
+									Message camMsg = mUIHandler.obtainMessage(
+											UIHandlerType.UPDATE_VIEW,
+											updateData);
+									camMsg.sendToTarget();
+
+									camCount = 0;
+								}
 								break;
 
 							case FIN:
@@ -329,11 +322,7 @@ public class MainActivity extends ActionBarActivity {
 								"processing thread may have been interuptted while waiting for data");
 					}
 
-					if (loop) {
-						Message stopMsg = mUIHandler
-								.obtainMessage(UIHandlerType.CLEAR_VIEW);
-						stopMsg.sendToTarget();
-					} else {
+					if (!loop) {
 						Message finRecMsg = mUIHandler
 								.obtainMessage(UIHandlerType.FIN_REC);
 						finRecMsg.sendToTarget();
@@ -567,6 +556,11 @@ public class MainActivity extends ActionBarActivity {
 		mControlButton.setEnabled(true);
 		mControlButton.setChecked(false);
 		recording = false;
+
+		clearGLView();
+	}
+
+	public void clearGLView() {
 	}
 
 }
