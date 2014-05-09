@@ -1,20 +1,30 @@
 package com.li_tianyang.android3d;
 
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.opengles.GL10;
+
 import android.support.v7.app.ActionBarActivity;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.PixelFormat;
 import android.hardware.Camera;
 import android.hardware.Camera.Size;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.opengl.GLES20;
+import android.opengl.GLSurfaceView;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -33,9 +43,114 @@ public class MainActivity extends ActionBarActivity {
 	private CameraPreview mPreview;
 	private boolean recording;
 
+	ToggleButton mControlButton;
+
 	private SensorManager mSensorManager;
 	private Sensor accel;
 	private Sensor gyro;
+
+	private int mPreviewW;
+	private int mPreviewH;
+
+	public class GLRenderer implements GLSurfaceView.Renderer {
+
+		public void onSurfaceCreated(GL10 unused, EGLConfig config) {
+			// Set the background frame color
+			GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		}
+
+		public void onDrawFrame(GL10 unused) {
+			// Redraw background color
+			GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+		}
+
+		public void onSurfaceChanged(GL10 unused, int width, int height) {
+			GLES20.glViewport(0, 0, width, height);
+		}
+	}
+
+	public class GLView extends GLSurfaceView {
+		public GLView(Context context) {
+			super(context);
+			setRenderer(new GLRenderer());
+			getHolder().setFormat(PixelFormat.TRANSLUCENT);
+			setEGLContextClientVersion(2);
+		}
+
+		@Override
+		public void onLayout(boolean changed, int left, int top, int right,
+				int bottom) {
+			if (changed) {
+
+				View par = (View) getParent();
+				final int w = par.getWidth();
+				final int h = par.getHeight();
+
+				int l = (w - mPreviewH) / 2;
+				int t = (h - mPreviewW) / 2;
+
+				(this).layout(l, t, l + mPreviewH, t + mPreviewW);
+			}
+		}
+	}
+
+	private GLView mGLView;
+
+	public class UIHandlerType {
+		// clear what has been drawn
+		public static final int CLEAR_VIEW = 0;
+
+		// update view with new drawing
+		public static final int UPDATE_VIEW = 1;
+
+		// finished receiving sensor data
+		public static final int FIN_REC = 2;
+
+		// finished processing sensor data
+		public static final int FIN_PROC = 3;
+	}
+
+	public static class UIHandler extends Handler {
+
+		private WeakReference<MainActivity> mMain;
+
+		public UIHandler(MainActivity mainActivity) {
+			super(Looper.getMainLooper());
+			mMain = new WeakReference<MainActivity>(mainActivity);
+		}
+
+		@Override
+		public void handleMessage(Message msg) {
+			MainActivity main = mMain.get();
+			if (main == null) {
+				Log.d(TAG, "MainActivity null in handler");
+				return;
+			}
+
+			switch (msg.what) {
+			case UIHandlerType.CLEAR_VIEW:
+
+				break;
+
+			case UIHandlerType.UPDATE_VIEW:
+
+				break;
+
+			case UIHandlerType.FIN_REC:
+				main.mControlButton.setEnabled(false);
+				break;
+
+			case UIHandlerType.FIN_PROC:
+				main.mControlButton.setEnabled(true);
+				break;
+
+			default:
+				Log.d(TAG, "mUIHandler got weird message");
+			}
+		}
+	}
+
+	private final Handler mUIHandler = new UIHandler(this);
 
 	public static enum RawDatumType {
 		GYRO, /* gyroscope */
@@ -120,8 +235,12 @@ public class MainActivity extends ActionBarActivity {
 		FrameLayout fL = (FrameLayout) findViewById(R.id.camera_preview);
 		fL.addView(mPreview);
 
-		ToggleButton cB = (ToggleButton) findViewById(R.id.control_button);
-		cB.bringToFront();
+		mGLView = new GLView(this);
+		fL.addView(mGLView);
+		mGLView.bringToFront();
+
+		mControlButton = (ToggleButton) findViewById(R.id.control_button);
+		mControlButton.bringToFront();
 
 		mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 		accel = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
@@ -171,6 +290,10 @@ public class MainActivity extends ActionBarActivity {
 
 					Log.d(TAG, "processing thread started");
 
+					Message startMsg = mUIHandler
+							.obtainMessage(UIHandlerType.CLEAR_VIEW);
+					startMsg.sendToTarget();
+
 					boolean loop = true;
 					RawDatum rawDatum = null;
 
@@ -202,9 +325,19 @@ public class MainActivity extends ActionBarActivity {
 						switch (rawDatum.mType) {
 
 						case FIN:
+							Message finRecMsg = mUIHandler
+									.obtainMessage(UIHandlerType.FIN_REC);
+							finRecMsg.sendToTarget();
+
+							Message finProcMsg = mUIHandler
+									.obtainMessage(UIHandlerType.FIN_PROC);
+							finProcMsg.sendToTarget();
 							break;
 
 						case STOP:
+							Message stopMsg = mUIHandler
+									.obtainMessage(UIHandlerType.CLEAR_VIEW);
+							stopMsg.sendToTarget();
 							break;
 
 						default:
@@ -360,6 +493,9 @@ public class MainActivity extends ActionBarActivity {
 				}
 			}
 
+			mPreviewH = goodSize.height;
+			mPreviewW = goodSize.width;
+
 			return goodSize;
 		}
 
@@ -385,12 +521,15 @@ public class MainActivity extends ActionBarActivity {
 
 		mSensorManager.unregisterListener(mSensorEventListener);
 
-		RawDatum rawDatum = new RawDatum();
-		rawDatum.mType = RawDatumType.STOP;
-		try {
-			mRawData.put(rawDatum);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
+		if (recording) {
+			RawDatum rawDatum = new RawDatum();
+			rawDatum.mType = RawDatumType.STOP;
+			try {
+				mRawData.put(rawDatum);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			recording = false;
 		}
 
 	}
@@ -433,8 +572,7 @@ public class MainActivity extends ActionBarActivity {
 
 		}
 
-		ToggleButton cB = (ToggleButton) findViewById(R.id.control_button);
-		cB.setChecked(false);
+		mControlButton.setChecked(false);
 		recording = false;
 	}
 
