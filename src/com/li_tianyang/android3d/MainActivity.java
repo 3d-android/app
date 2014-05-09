@@ -573,6 +573,7 @@ public class MainActivity extends ActionBarActivity {
 		}
 
 		mControlButton.setChecked(false);
+		mControlButton.setEnabled(true);
 		recording = false;
 	}
 
